@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prisma Lab | Dispersión de la luz</title>
+<style>
+:root{color-scheme:dark;--bg:#07111f;--panel:#101e30;--line:#263a52;--text:#edf5ff;--muted:#a8bbd1;--cyan:#6ee7ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% 0,#142b46 0,var(--bg) 58%);color:var(--text);font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+header{padding:28px 18px 18px;text-align:center}h1{margin:0;font-size:clamp(1.8rem,5vw,3rem);letter-spacing:-.04em}header p{color:var(--muted);max-width:760px;margin:10px auto 0}
+main{max-width:1200px;margin:auto;padding:0 16px 36px;display:grid;grid-template-columns:minmax(0,1.7fr) minmax(280px,1fr);gap:16px}
+.panel{background:linear-gradient(145deg,#12243aee,#0b1727f2);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 16px 40px #0003}
+.canvas-wrap{width:100%;aspect-ratio:1.5;min-height:280px}canvas{display:block;width:100%;height:100%;border-radius:12px;background:#050b15}
+.controls{display:grid;gap:16px}.control label{display:flex;justify-content:space-between;gap:12px;font-weight:650}.control output{color:var(--cyan);font-variant-numeric:tabular-nums}.control input{width:100%;accent-color:var(--cyan);margin-top:8px}
+button,select{background:#1a304a;color:var(--text);border:1px solid #35516f;border-radius:10px;padding:10px 12px;font:inherit}button{cursor:pointer}button:hover{background:#244565}.button-row{display:flex;flex-wrap:wrap;gap:8px}.mode{display:grid;gap:8px}.mode label{font-weight:650}.mode select{width:100%}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.metric{padding:10px;background:#091525;border:1px solid #22354b;border-radius:12px}.metric span{display:block;color:var(--muted);font-size:.8rem}.metric strong{font-size:1.1rem}
+h2{font-size:1.1rem;margin:0 0 12px}h3{font-size:1rem;margin:0 0 6px}.explain{color:var(--muted);font-size:.94rem}.formula{font-size:1.12rem;color:#fff;background:#081321;border:1px solid #23384f;padding:12px;border-radius:10px;text-align:center;margin:10px 0}.legend{display:flex;flex-wrap:wrap;gap:10px;color:var(--muted);font-size:.85rem;margin-top:10px}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+footer{text-align:center;color:var(--muted);padding:0 16px 28px;font-size:.85rem}
+@media(max-width:800px){main{grid-template-columns:1fr}.canvas-wrap{min-height:250px}.panel{padding:13px}.metrics{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Prisma <span style="color:var(--cyan)">Lab</span></h1>
+  <p>Explora cómo un prisma separa la luz blanca en colores. Modifica el vidrio, la geometría y el modelo para comparar una explicación física con la licencia artística de una portada icónica.</p>
+</header>
+<main>
+  <section class="panel">
+    <div class="canvas-wrap"><canvas id="scene" aria-label="Simulación de rayos de luz entrando y saliendo de un prisma"></canvas></div>
+    <div class="legend">
+      <span><i class="dot" style="background:#fff"></i>Luz blanca</span>
+      <span><i class="dot" style="background:#ff4b4b"></i>Rojo</span>
+      <span><i class="dot" style="background:#a78bfa"></i>Violeta</span>
+    </div>
+    <div class="metrics">
+      <div class="metric"><span>Índice base</span><strong id="metricN">1.520</strong></div>
+      <div class="metric"><span>Velocidad en vidrio</span><strong id="metricV">197.2 mil km/s</strong></div>
+      <div class="metric"><span>Separación angular*</span><strong id="metricD">—</strong></div>
+    </div>
+    <p class="explain">*Estimación geométrica ilustrativa entre rayos extremos; la escena no es una herramienta de diseño óptico de precisión.</p>
+  </section>
+  <aside class="panel controls">
+    <div>
+      <h2>Controles del experimento</h2>
+      <div class="control">
+        <label for="n">Índice de refracción base <output id="nOut">1.520</output></label>
+        <input id="n" type="range" min="1.30" max="1.80" step="0.005" value="1.52">
+      </div>
+      <div class="control" style="margin-top:14px">
+        <label for="disp">Dispersión del vidrio <output id="dispOut">0.035</output></label>
+        <input id="disp" type="range" min="0.005" max="0.080" step="0.001" value="0.035">
+      </div>
+      <div class="control" style="margin-top:14px">
+        <label for="angle">Ángulo del prisma <output id="angleOut">60°</output></label>
+        <input id="angle" type="range" min="35" max="75" step="1" value="60">
+      </div>
+      <div class="control" style="margin-top:14px">
+        <label for="beam">Apertura del haz <output id="beamOut">0°</output></label>
+        <input id="beam" type="range" min="-10" max="10" step="1" value="0">
+      </div>
+    </div>
+    <div class="mode">
+      <label for="model">Modo de visualización</label>
+      <select id="model">
+        <option value="real">Prisma real: dispersión desde la primera cara</option>
+        <option value="cover">Modo portada: haz interior blanco (artístico)</option>
+      </select>
+    </div>
+    <div class="button-row">
+      <button id="reset">Restablecer</button>
+      <button id="pause">Pausar animación</button>
+    </div>
+    <div>
+      <h2>La física detrás del color</h2>
+      <div class="formula">v = c / n</div>
+      <p class="explain">En un medio transparente, la velocidad de fase depende del índice de refracción <i>n</i>. En este modelo, el índice varía ligeramente con la longitud de onda: el violeta se refracta más que el rojo en dispersión normal.</p>
+      <div class="formula">n(λ) = n₀ + D · (550/λ − 1)</div>
+      <p class="explain">Modelo didáctico simplificado. <i>D</i> controla cuánto cambia el índice con la longitud de onda λ, expresada en nanómetros. No representa un vidrio comercial específico.</p>
+    </div>
+  </aside>
+</main>
+<footer>Prisma Lab · Recurso educativo de óptica · La simulación es esquemática y no sustituye un trazado óptico profesional.</footer>
+<script>
+(() => {
+  const canvas = document.getElementById('scene');
+  const ctx = canvas.getContext('2d');
+  const $ = id => document.getElementById(id);
+  const defaults = {n:1.52, disp:0.035, angle:60, beam:0, model:'real'};
+  let paused = false, start = performance.now(), raf;
+  const colors = [
+    {name:'Rojo', nm:700, color:'#ff3b4f'},
+    {name:'Naranja', nm:620, color:'#ff9638'},
+    {name:'Amarillo', nm:580, color:'#ffe34f'},
+    {name:'Verde', nm:530, color:'#4ee58a'},
+    {name:'Azul', nm:470, color:'#4aa8ff'},
+    {name:'Índigo', nm:440, color:'#5968ff'},
+    {name:'Violeta', nm:400, color:'#b77bff'}
+  ];
+  const read = () => ({
+    n:+$('n').value, disp:+$('disp').value, angle:+$('angle').value,
+    beam:+$('beam').value, model:$('model').value
+  });
+  function indexAt(nm,p){return p.n + p.disp*(550/nm-1);}
+  function refract(I,N,n1,n2){
+    // N debe apuntar contra el rayo incidente.
+    let cosi = -(I.x*N.x + I.y*N.y);
+    if(cosi < 0){N={x:-N.x,y:-N.y};cosi=-(I.x*N.x+I.y*N.y);}
+    const eta=n1/n2, k=1-eta*eta*(1-cosi*cosi);
+    if(k<0)return null;
+    return {x:eta*I.x+(eta*cosi-Math.sqrt(k))*N.x,
+            y:eta*I.y+(eta*cosi-Math.sqrt(k))*N.y};
+  }
+  const norm = v => {const m=Math.hypot(v.x,v.y)||1;return {x:v.x/m,y:v.y/m};};
+  const add=(a,b,s)=>({x:a.x+b.x*s,y:a.y+b.y*s});
+  function lineToBoundary(P,D,A,B){
+    const E={x:B.x-A.x,y:B.y-A.y}, den=D.x*E.y-D.y*E.x;
+    if(Math.abs(den)<1e-8)return null;
+    const AP={x:A.x-P.x,y:A.y-P.y};
+    const t=(AP.x*E.y-AP.y*E.x)/den;
+    const u=(AP.x*D.y-AP.y*D.x)/den;
+    if(t>0.1 && u>=-1e-6 && u<=1.000001)return {t,u,point:add(P,D,t)};
+    return null;
+  }
+  function makePrism(w,h,p){
+    const A={x:w*.50,y:h*.18};
+    const half=Math.min(w*.31,h*.43);
+    const rad=p.angle*Math.PI/180;
+    // Triangle is symmetric; changing angle changes base width.
+    const height=half/Math.tan(rad/2);
+    return [A,{x:w*.5+half,y:A.y+height},{x:w*.5-half,y:A.y+height}];
+  }
+  function draw(p,now){
+    const dpr=Math.min(window.devicePixelRatio||1,2);
+    const rect=canvas.getBoundingClientRect(), w=Math.max(300,rect.width), h=Math.max(250,rect.height);
+    if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);}
+    ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+    const bg=ctx.createRadialGradient(w*.5,h*.35,10,w*.5,h*.4,w*.75);bg.addColorStop(0,'#10243a');bg.addColorStop(1,'#030811');ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);
+    const prism=makePrism(w,h,p), [A,B,C]=prism;
+    // Subtle stars
+    for(let i=0;i<45;i++){const x=(i*83+17)%w,y=(i*47+13)%h;ctx.fillStyle=`rgba(180,220,255,${.08+(i%4)*.04})`;ctx.fillRect(x,y,1.2,1.2);}
+    // Prism fill
+    ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.lineTo(C.x,C.y);ctx.closePath();
+    const glass=ctx.createLinearGradient(C.x,C.y,B.x,A.y);glass.addColorStop(0,'rgba(74,166,210,.16)');glass.addColorStop(.5,'rgba(198,237,255,.08)');glass.addColorStop(1,'rgba(115,187,255,.18)');
+    ctx.fillStyle=glass;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='rgba(192,235,255,.8)';ctx.stroke();
+    const left={x:Math.min(B.x,C.x),y:A.y+(B.y-A.y)*.36};
+    // Entry ray: slightly angled by beam control
+    const I=norm({x:1,y:p.beam/35});
+    const origin={x:5,y:left.y-I.y*(left.x-5)/I.x};
+    const hit1=lineToBoundary(origin,I,A,C) || lineToBoundary(origin,I,A,B);
+    // Actual face hit should be left sloping edge C-A.
+    const entry=lineToBoundary(origin,I,C,A);
+    const P=entry?entry.point:{x:w*.34,y:h*.43};
+    const inDir=I;
+    const glow=(points,color,width,alpha=1)=>{
+      ctx.save();ctx.globalAlpha=alpha;ctx.lineCap='round';ctx.lineJoin='round';
+      ctx.beginPath();ctx.moveTo(points[0].x,points[0].y);for(let i=1;i<points.length;i++)ctx.lineTo(points[i].x,points[i].y);
+      ctx.strokeStyle=color;ctx.lineWidth=width+5;ctx.shadowColor=color;ctx.shadowBlur=15;ctx.globalAlpha=alpha*.22;ctx.stroke();
+      ctx.globalAlpha=alpha;ctx.beginPath();ctx.moveTo(points[0].x,points[0].y);for(let i=1;i<points.length;i++)ctx.lineTo(points[i].x,points[i].y);ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke();ctx.restore();
+    };
+    const rayStart={x:0,y:P.y-I.y*(P.x)/I.x};
+    glow([rayStart,P],'#ffffff',2.3,.95);
+    const wave=(now-start)/1000;
+    // Face normals oriented against incident ray.
+    const E1=norm({x:A.x-C.x,y:A.y-C.y});
+    let N1=norm({x:-E1.y,y:E1.x});if(I.x*N1.x+I.y*N1.y>0)N1={x:-N1.x,y:-N1.y};
+    const E2=norm({x:B.x-A.x,y:B.y-A.y});
+    let N2=norm({x:-E2.y,y:E2.x});
+    const rays=[];
+    for(const col of colors){
+      const n=indexAt(col.nm,p);
+      let inside=refract(I,N1,1,n);
+      if(!inside)continue;
+      // Find next intersection with the other two faces.
+      const candidates=[lineToBoundary(P,inside,A,B),lineToBoundary(P,inside,B,C)].filter(Boolean).sort((a,b)=>a.t-b.t);
+      const outHit=candidates[0];
+      if(!outHit)continue;
+      let Nout;
+      const faceA=outHit.u; // use face segment to select a normal
+      const seg = (lineToBoundary(P,inside,A,B)===outHit)?[A,B]:[B,C];
+      const edge=norm({x:seg[1].x-seg[0].x,y:seg[1].y-seg[0].y});
+      Nout=norm({x:-edge.y,y:edge.x});
+      if(inside.x*Nout.x+inside.y*Nout.y>0)Nout={x:-Nout.x,y:-Nout.y};
+      let out=refract(inside,Nout,n,1);
+      if(!out)out=inside;
+      const end=add(outHit.point,out,Math.max(w,h)*1.2);
+      rays.push({col,n,inside,out,hit:outHit.point,end});
+    }
+    // Draw internal and outgoing spectra; cover mode masks internal separation with a white beam.
+    if(p.model==='cover'){
+      const mid=rays[Math.floor(rays.length/2)];
+      if(mid)glow([P,mid.hit],'#ffffff',3.3,.9);
+    } else {
+      rays.forEach(({col,inside,hit})=>glow([P,hit],col.color,1.25,.9));
+    }
+    rays.forEach(({col,hit,end},i)=>{
+      const phase=((wave*55+i*13)%70);
+      const rayLen=Math.max(1,Math.hypot(end.x-hit.x,end.y-hit.y));
+      const animatedStart=add(hit,{x:(end.x-hit.x)/rayLen,y:(end.y-hit.y)/rayLen},phase);
+      glow([hit,end],col.color,1.7,.92);
+      ctx.beginPath();ctx.arc(animatedStart.x,animatedStart.y,2.2,0,Math.PI*2);ctx.fillStyle='#fff';ctx.globalAlpha=.8;ctx.fill();ctx.globalAlpha=1;
+    });
+    ctx.fillStyle='#d8eaff';ctx.font='12px system-ui';ctx.fillText('LUZ BLANCA',12,Math.max(18,P.y-14));
+    ctx.fillText(p.model==='cover'?'REPRESENTACIÓN ARTÍSTICA':'DISPERSIÓN FÍSICA ESQUEMÁTICA',12,h-14);
+    // Labels
+    ctx.fillStyle='rgba(225,243,255,.85)';ctx.font='12px system-ui';ctx.fillText('vidrio',A.x+8,A.y+30);
+    const v=p.n; $('metricN').textContent=v.toFixed(3);
+    $('metricV').textContent=(299792.458/v).toFixed(1)+' mil km/s';
+    if(rays.length>1){
+      const a=Math.atan2(rays[0].end.y-rays[0].hit.y,rays[0].end.x-rays[0].hit.x);
+      const b=Math.atan2(rays[rays.length-1].end.y-rays[rays.length-1].hit.y,rays[rays.length-1].end.x-rays[rays.length-1].hit.x);
+      $('metricD').textContent=(Math.abs(a-b)*180/Math.PI).toFixed(1)+'°';
+    } else $('metricD').textContent='—';
+  }
+  function updateLabels(){
+    const p=read();
+    $('nOut').textContent=p.n.toFixed(3);$('dispOut').textContent=p.disp.toFixed(3);
+    $('angleOut').textContent=p.angle+'°';$('beamOut').textContent=p.beam+'°';
+  }
+  function loop(now){const p=read();updateLabels();draw(p,now);if(!paused)raf=requestAnimationFrame(loop);}
+  ['n','disp','angle','beam','model'].forEach(id=>$(id).addEventListener('input',()=>{updateLabels();draw(read(),performance.now());}));
+  $('reset').addEventListener('click',()=>{Object.entries(defaults).forEach(([k,v])=>$(k).value=v);paused=false;$('pause').textContent='Pausar animación';start=performance.now();cancelAnimationFrame(raf);raf=requestAnimationFrame(loop);});
+  $('pause').addEventListener('click',()=>{paused=!paused;$('pause').textContent=paused?'Reanudar animación':'Pausar animación';if(!paused){start=performance.now();raf=requestAnimationFrame(loop);}});
+  window.addEventListener('resize',()=>draw(read(),performance.now()));
+  raf=requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
